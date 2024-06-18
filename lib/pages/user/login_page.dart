@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
 import 'package:komunly/pages/user/register_page.dart';
 import 'package:komunly/pages/root_app.dart';
+import 'package:komunly/utils/helper.dart';
 import 'package:komunly/utils/shape_clippers.dart';
 import 'package:komunly/widgets/snackbars.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,10 +56,8 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setString('user_id', userId);
         await prefs.setString('access_token', accessToken);
         await prefs.setString('refresh_token', refreshToken);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const RootPage()),
-        );
+        Helper.nextScreen(context, RootPage());
+
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");

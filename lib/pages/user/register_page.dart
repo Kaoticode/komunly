@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
 import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/repository/user.repository.dart';
 import 'package:komunly/utils/shape_clippers.dart';
 import 'package:komunly/widgets/snackbars.dart';
 import 'package:http/http.dart' as http;
@@ -44,21 +45,9 @@ class _RegistePageState extends State<RegistePage> {
     setState(() {
       registerText = "Registrando...";
     });
-    String apiUrl = "$API_URL/auth/register";
-
     try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'username': username,
-          'email': email,
-          'password': password,
-        }),
-      );
-      if (response.statusCode == 201) {
+      var response = await createUser(username, password, email);
+      if (response != null) {
         showSnackMessage(context,
             "Registro exitoso. Inicia sesión para continuar", "SUCCESS");
       } else {

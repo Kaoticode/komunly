@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:komunly/pages/apuestas_page.dart';
+import 'package:komunly/pages/bet/apuestas_page.dart';
 import 'package:komunly/pages/chat/chat_list_page.dart';
 import 'package:komunly/pages/create_events_page.dart';
 import 'package:komunly/pages/gambling_page.dart';

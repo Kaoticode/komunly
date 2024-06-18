@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:komunly/widgets/calendar.dart';
 import 'package:komunly/widgets/posts.dart';
-import 'package:komunly/widgets/usersList.dart';
+import 'package:komunly/widgets/user/usersList.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});

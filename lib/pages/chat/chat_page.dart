@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
 import 'package:komunly/functions/functions.dart';
 import 'package:komunly/pages/user/login_page.dart';
-import 'package:komunly/pages/post_page.dart';
+import 'package:komunly/pages/social/post_page.dart';
 import 'package:komunly/utils/widgets.dart';
 import 'package:komunly/widgets/bottom_modal.dart';
 import 'package:komunly/widgets/snackbars.dart';

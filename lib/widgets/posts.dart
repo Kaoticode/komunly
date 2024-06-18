@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
 import 'package:komunly/functions/functions.dart';
 import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/repository/social.repository.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:komunly/utils/reusables.dart';
 import 'package:komunly/utils/widgets.dart';
 import 'package:komunly/widgets/commentList.dart';
 import 'package:komunly/widgets/premiumUser.dart';
 import 'package:komunly/widgets/snackbars.dart';
-import 'package:komunly/widgets/usersListSend.dart';
+import 'package:komunly/widgets/user/usersListSend.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -36,42 +37,22 @@ class _PostsWidgetState extends State<PostsWidget> {
     super.initState();
     scrollController.addListener(_scrollListener);
     fetchPosts();
-    getMyUserId();
   }
-
-  Future<void> getMyUserId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    myUserId = prefs.getString('user_id')!;
-  }
-
   Future<void> fetchPosts() async {
     if (isLoading) return;
     setState(() {
       isLoading = true;
     });
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/${widget.endpoint}limit=$limit&page=$page";
-
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
+      var response = await getPosts(limit, page, widget.endpoint);
 
-      if (response.statusCode == 200) {
-        var jsonResponse = json.decode(response.body);
+      if (response != null) {
+        var jsonResponse = json.decode(response);
         List<dynamic> newData = jsonResponse['data'];
 
         setState(() {
           PostsList.addAll(newData);
         });
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -85,47 +66,6 @@ class _PostsWidgetState extends State<PostsWidget> {
     }
   }
 
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-        if (PostsList.isEmpty) {
-          fetchPosts();
-        }
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
-    }
-  }
 
   Future<void> postLike(int index, String postLiked, String userLiked) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -147,7 +87,7 @@ class _PostsWidgetState extends State<PostsWidget> {
 
       if (response.statusCode == 201) {
       } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+        fetchPosts();
         setState(() {
           PostsList[index]["likesCount"] = PostsList[index]["likesCount"] - 1;
           PostsList[index]["isLiked"] = false;
@@ -187,7 +127,7 @@ class _PostsWidgetState extends State<PostsWidget> {
       );
       if (response.statusCode == 200) {
       } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+        fetchPosts();
         setState(() {
           PostsList[index]["likesCount"] = PostsList[index]["likesCount"] + 1;
           PostsList[index]["isLiked"] = true;
@@ -232,7 +172,7 @@ class _PostsWidgetState extends State<PostsWidget> {
 
       if (response.statusCode == 201) {
       } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+        fetchPosts();
         setState(() {
           PostsList[index]["isReposted"] = false;
           PostsList[index]["repostsCount"] =
@@ -283,7 +223,7 @@ class _PostsWidgetState extends State<PostsWidget> {
 
       if (response.statusCode == 201) {
       } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+        fetchPosts();
         setState(() {
           PostsList[index]["isBookmarked"] = false;
         });
@@ -318,7 +258,7 @@ class _PostsWidgetState extends State<PostsWidget> {
 
       if (response.statusCode == 200) {
       } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+        fetchPosts();
         setState(() {
           PostsList[index]["isBookmarked"] = true;
         });
@@ -349,7 +289,7 @@ class _PostsWidgetState extends State<PostsWidget> {
 
       if (response.statusCode == 200) {
       } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+        fetchPosts();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -374,7 +314,7 @@ class _PostsWidgetState extends State<PostsWidget> {
       if (response.statusCode == 201) {
         showSnackMessage(context, "Post reportado con éxito", "SUCCESS");
       } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+        fetchPosts();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");

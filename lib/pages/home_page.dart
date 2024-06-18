@@ -53,7 +53,7 @@ class _HomePageState extends State<HomePage> {
               StoriesWidget(),
             ],
           ),
-          PostsWidget(postHeight: 260, endpoint: 'posts?',),
+          PostsWidget(postHeight: 260, endpoint: 'posts',),
         ],
       ),
     );

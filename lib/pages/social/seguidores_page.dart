@@ -2,28 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:komunly/widgets/appBar.dart';
 import 'package:komunly/widgets/solicitudesList.dart';
-import 'package:komunly/widgets/usersFollowingsList.dart';
+import 'package:komunly/widgets/user/usersFollowersList.dart';
 
-class SeguidosPage extends StatefulWidget {
+class SeguidoresPage extends StatefulWidget {
   final String userid;
-  const SeguidosPage({super.key, required this.userid});
+  const SeguidoresPage({super.key, required this.userid});
 
   @override
-  State<SeguidosPage> createState() => _SeguidosPageState();
+  State<SeguidoresPage> createState() => _SeguidoresPageState();
 }
 
-class _SeguidosPageState extends State<SeguidosPage> {
+class _SeguidoresPageState extends State<SeguidoresPage> {
   @override
   void initState() {
     print(widget.userid);
     super.initState();
   }
 
- @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: const CustomAppBar(title: "Seguidos"),
+      appBar: const CustomAppBar(title: "Seguidores"),
       body: Column(
         children: [
           GestureDetector(
@@ -32,7 +32,7 @@ class _SeguidosPageState extends State<SeguidosPage> {
                 context: context,
                 builder: (BuildContext context) {
                   return solicitudesList(
-                    direction: 'sent',
+                    direction: 'pending',
                   );
                 },
               );
@@ -45,7 +45,7 @@ class _SeguidosPageState extends State<SeguidosPage> {
                 color: primary,
                 child: const Center(
                     child: Text(
-                  "Ver solicitudes de seguimiento enviadas",
+                  "Ver solicitudes de seguimiento recibidas",
                   style: TextStyle(
                       color: Colors.black, fontWeight: FontWeight.bold),
                 )),
@@ -53,7 +53,7 @@ class _SeguidosPageState extends State<SeguidosPage> {
             ),
           ),
           Expanded(
-            child: UsersFollowingList(
+            child: UsersFollowersList(
               userId: widget.userid,
             ),
           ),

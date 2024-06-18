@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:komunly/pages/post_image_page.dart';
+import 'package:komunly/pages/social/post_image_page.dart';
 import 'package:komunly/pages/profile/profile_image_page.dart';
 import 'package:komunly/pages/story_image_page.dart';
 import 'package:komunly/widgets/appBar.dart';

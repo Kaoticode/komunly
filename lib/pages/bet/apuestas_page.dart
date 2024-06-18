@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:komunly/widgets/appBar.dart';
-import 'package:komunly/widgets/bets.dart';
+import 'package:komunly/widgets/bet/bets.dart';
 
 class ApuestasPage extends StatefulWidget {
   const ApuestasPage({super.key});
