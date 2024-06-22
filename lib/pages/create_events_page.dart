@@ -1,13 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
-import 'package:http/http.dart' as http;
-import 'package:komunly/constants/constants.dart';
-import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/repository/social.repository.dart';
 import 'package:komunly/widgets/appBar.dart';
 import 'package:komunly/widgets/snackbars.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class CreateEvents extends StatefulWidget {
   const CreateEvents({super.key});
@@ -20,13 +16,11 @@ class _CreateEventsState extends State<CreateEvents> {
   late TextEditingController _titleController;
   late DateTime _selectedDate = DateTime.now();
   String _eventType = 'free';
-
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController();
   }
-
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -40,17 +34,11 @@ class _CreateEventsState extends State<CreateEvents> {
       });
     }
   }
-
   String _formatMonth(int month) {
     return month.toString().padLeft(2, '0');
   }
-
   Future<void> _createEvent() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/events";
     final String title = _titleController.text;
-
     // Formateamos la fecha para asegurarnos de que el mes tenga dos dígitos
     final String setDate =
         "${_selectedDate.year}-${_formatMonth(_selectedDate.month)}-${_selectedDate.day}";
@@ -58,20 +46,11 @@ class _CreateEventsState extends State<CreateEvents> {
     final String type = _eventType;
 
     try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-        body: json.encode({"title": title, "setDate": setDate, "type": type}),
-      );
+      var response = await createEvent(context, {"title": title, "setDate": setDate, "type": type});
 
       if (response.statusCode == 201) {
         showSnackMessage(context, "Evento creado con éxito", "SUCCESS");
         setState(() {});
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -80,46 +59,6 @@ class _CreateEventsState extends State<CreateEvents> {
       showSnackMessage(context, "Error de conexión: $e", "ERROR");
     }
   }
-
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

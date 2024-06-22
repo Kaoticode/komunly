@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
 import 'package:komunly/functions/functions.dart';
-import 'package:komunly/pages/user/login_page.dart';
 import 'package:komunly/repository/social.repository.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:komunly/utils/reusables.dart';
@@ -43,8 +42,9 @@ class _PostsWidgetState extends State<PostsWidget> {
     setState(() {
       isLoading = true;
     });
+    String apiUrl = "${widget.endpoint}limit=$limit&page=$page";
     try {
-      var response = await getPosts(limit, page, widget.endpoint);
+      var response = await getPosts(context, apiUrl);
 
       if (response != null) {
         var jsonResponse = json.decode(response);

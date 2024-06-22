@@ -1,14 +1,13 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
-import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/models/user.model.dart';
+import 'package:komunly/repository/social.repository.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:komunly/widgets/appBar.dart';
 import 'package:komunly/pages/chat/chat_page.dart';
 import 'package:komunly/widgets/snackbars.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatList extends StatefulWidget {
   const ChatList({Key? key}) : super(key: key);
@@ -20,91 +19,27 @@ class ChatList extends StatefulWidget {
 class _ChatListState extends State<ChatList> {
   final scrollController = ScrollController();
   List<dynamic> chatList = [];
-  late String? myUserId;
   bool isLoading = false;
-  int page = 1;
-  int limit = 15;
-
   @override
   void initState() {
     super.initState();
-    fetchUserId();
+    fetchMessageList();
   }
 
   void fetchMessageList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/messages/chat";
-
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
-
-      if (response.statusCode == 200) {
+      var response = await getMessagesChat(context);
+      var jsonResponse = json.decode(response.body);
+      if (response.statusCode == 201) {
         setState(() {
-          var jsonResponse = json.decode(response.body);
           chatList = jsonResponse['data'];
         });
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
+      }  else {
+        showSnackMessage(context, jsonResponse['message'], "ERROR");
       }
     } catch (e) {
       showSnackMessage(context, "Error de conexión: $e", "ERROR");
     }
-  }
-
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-            fetchMessageList();
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
-    }
-  }
-
-  void fetchUserId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    myUserId = prefs.getString('user_id');
-    fetchMessageList();
   }
 
   @override
@@ -136,7 +71,7 @@ class _ChatListState extends State<ChatList> {
                   var lastMessage =
                       lastMessageList.isNotEmpty ? lastMessageList.first : null;
                   var participants = chatList[index]['participants']
-                      .where((participant) => participant['_id'] != myUserId)
+                      .where((participant) => participant['_id'] != currentUser.value.id)
                       .toList();
 
                   if (participants.isNotEmpty && lastMessage != null) {

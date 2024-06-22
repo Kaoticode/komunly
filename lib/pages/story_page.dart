@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
-import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/models/user.model.dart';
+import 'package:komunly/repository/social.repository.dart';
 import 'package:komunly/widgets/snackbars.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class StoryPage extends StatefulWidget {
   final List<dynamic> storiesList;
@@ -24,7 +23,6 @@ class _StoryPageState extends State<StoryPage> {
   final TextEditingController _answerController = TextEditingController();
   late int currentAuthorIndex;
   late int currentStoryIndex;
-  late String myUserId;
   late bool isMyStory = false;
 
   @override
@@ -32,18 +30,13 @@ class _StoryPageState extends State<StoryPage> {
     super.initState();
     currentAuthorIndex = widget.initialIndex;
     currentStoryIndex = 0;
-    getMyUserId(); // Llamamos a la función getMyUserId sin await
+    checkStoryOwner();// Llamamos a la función getMyUserId sin await
   }
 
-  Future<void> getMyUserId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    myUserId = prefs.getString('user_id') ??
-        ""; // Asignamos un valor por defecto en caso de que prefs.getString('user_id') sea null
-    checkStoryOwner(); // Llamamos a checkStoryOwner después de obtener myUserId
-  }
+  
 
   void checkStoryOwner() {
-    if (myUserId == widget.storiesList[currentStoryIndex]["author"]["_id"]) {
+    if (currentUser.value.id == widget.storiesList[currentStoryIndex]["author"]["_id"]) {
       isMyStory = true;
     } else {
       isMyStory = false;
@@ -121,25 +114,12 @@ class _StoryPageState extends State<StoryPage> {
   }
 
   Future<void> storieViewed(storieId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String? myUserId = prefs.getString('user_id');
-    String apiUrl = "$API_URL/stories/$storieId/viewers";
-
     try {
-      var response = await http.post(Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $accessToken',
-          },
-          body: jsonEncode({
-            "userId": myUserId,
-          }));
-
+      var response = await userStorieViewed(context, 'stories/$storieId/viewers', {
+            "userId": currentUser.value.id,
+      });
       if (response.statusCode == 201) {
         print("vista");
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -150,28 +130,16 @@ class _StoryPageState extends State<StoryPage> {
   }
 
   Future<void> responderStory() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/messages";
-
     try {
-      var response = await http.post(Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $accessToken',
-          },
-          body: jsonEncode({
+      var response = await resStorie(context, {
             "receiverId": widget.storiesList[currentStoryIndex]["author"]
                 ["_id"],
             "body": _answerController.text,
             "type": "STORY",
-          }));
-
+          });
       if (response.statusCode == 201) {
         _answerController.clear();
          showSnackMessage(context, "Historia respondida con éxito", "SUCCESS");
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -181,45 +149,7 @@ class _StoryPageState extends State<StoryPage> {
     }
   }
 
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-        getMyUserId();
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
-    }
-  }
+ 
 
   @override
   Widget build(BuildContext context) {

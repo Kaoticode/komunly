@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-
 import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
-import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/repository/user.repository.dart';
 import 'package:komunly/widgets/notificationItem.dart';
 import 'package:komunly/widgets/snackbars.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 class NotificationsPage extends StatefulWidget {
@@ -36,19 +33,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
       isLoading = true;
     });
 
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/notifications?page=$page&limit=$limit";
-
+    
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
-
+    var response = await getUserNotifications(context, 'notifications?page=$page&limit=$limit');
       if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
         List<dynamic> newData = jsonResponse['data'];
@@ -56,8 +43,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
         setState(() {
           notifications.addAll(newData);
         });
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -70,47 +55,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       });
     }
   }
-
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-        fetchNotificaciones();
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -8,10 +8,7 @@ ValueNotifier<UserModel> currentUser = ValueNotifier(UserModel());
 
 class UserModel {
   late String id = '';
-  late String fullname = '';
-  late String email = '';
-  late String password = '';
-  late String nie = '';
+
   
 //  String role;
 
@@ -19,12 +16,7 @@ class UserModel {
 
   UserModel.fromJSON(Map<String, dynamic> jsonMap) {
     try {
-      id = jsonMap['_id'] ?? '';
-      
-      fullname = jsonMap['fullname'] ?? 'Complete';
-      email = jsonMap['email'] ?? '';
-      password = jsonMap['password'] ?? '';
-      nie = jsonMap['nie'] ?? '';
+      id = jsonMap['user_id'] ?? '';
     } catch (value) {}
   }
 }

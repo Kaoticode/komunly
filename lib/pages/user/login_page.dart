@@ -1,13 +1,11 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:komunly/constants/constants.dart';
 import 'package:komunly/pages/user/register_page.dart';
 import 'package:komunly/pages/root_app.dart';
+import 'package:komunly/repository/user.repository.dart';
 import 'package:komunly/utils/helper.dart';
 import 'package:komunly/utils/shape_clippers.dart';
 import 'package:komunly/widgets/snackbars.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -34,33 +32,13 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       loginText = "Iniciando sesión...";
     });
-    String apiUrl = "$API_URL/auth/login";
-
     try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'username': username,
-          'password': password,
-        }),
-      );
+      var response = await loginUser(context, username, password);
+      var jsonResponse = json.decode(response.body);
       if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String userId = jsonResponse['user_id'];
-        String accessToken = jsonResponse['access_token'];
-        String refreshToken = jsonResponse['refresh_token'];
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_id', userId);
-        await prefs.setString('access_token', accessToken);
-        await prefs.setString('refresh_token', refreshToken);
         Helper.nextScreen(context, RootPage());
-
       } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
+        showSnackMessage(context, jsonResponse['message'], "ERROR");
       }
     } catch (e) {
       print("Error de conexión: $e");
@@ -75,7 +53,6 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
   }
-
   @override
   Widget build(BuildContext context) {
     var heightOfScreen = MediaQuery.of(context).size.height;

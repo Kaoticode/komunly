@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:komunly/constants/constants.dart';
 import 'package:komunly/pages/user/login_page.dart';
 import 'package:komunly/repository/user.repository.dart';
 import 'package:komunly/utils/shape_clippers.dart';
 import 'package:komunly/widgets/snackbars.dart';
-import 'package:http/http.dart' as http;
 
 class RegistePage extends StatefulWidget {
   const RegistePage({super.key});
@@ -46,13 +44,13 @@ class _RegistePageState extends State<RegistePage> {
       registerText = "Registrando...";
     });
     try {
-      var response = await createUser(username, password, email);
-      if (response != null) {
+      var response = await createUser(context, username, password, email);
+      var jsonResponse = json.decode(response.body);
+      if (response.statusCode == 201) {
         showSnackMessage(context,
             "Registro exitoso. Inicia sesión para continuar", "SUCCESS");
       } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
+        showSnackMessage(context, jsonResponse['message'], "ERROR");
       }
     } catch (e) {
       showSnackMessage(context, "Error de conexión: $e", "ERROR");

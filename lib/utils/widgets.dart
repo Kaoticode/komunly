@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:shimmer/shimmer.dart';
 

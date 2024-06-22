@@ -1,25 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
-import 'package:http/http.dart' as http;
-import 'package:komunly/constants/constants.dart';
-import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/models/user.model.dart';
+import 'package:komunly/repository/user.repository.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:komunly/widgets/moneda.dart';
 import 'package:komunly/widgets/snackbars.dart';
 import 'package:komunly/widgets/tablero.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 class GamblingPage extends StatefulWidget {
   static const String id = "/gambling";
-
   const GamblingPage({super.key});
-
   @override
   State<GamblingPage> createState() => _GamblingPageState();
 }
-
 class _GamblingPageState extends State<GamblingPage> {
   final selected = BehaviorSubject<int>();
   late int allIn = 0;
@@ -41,27 +35,14 @@ class _GamblingPageState extends State<GamblingPage> {
   }
 
   void fetchUserBalance() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/users/getBalance";
-
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
-
+      var response = await getUserBalance(context);
       if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
         userBalance = jsonResponse['userBalance'];
         allIn = userBalance;
         setState(() {});
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
-      } else {
+      }  else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
       }
@@ -72,31 +53,18 @@ class _GamblingPageState extends State<GamblingPage> {
 
   Future<void> updateBalanceInDatabase(
       int totalBet, String type, String transactionText) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String? myUserId = prefs.getString('user_id');
-    String apiUrl = "$API_URL/transactions";
+    
 
     try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-        body: json.encode({
+      var response = await updateUserBalance(context, {
           "amount": totalBet,
           "transactionType": type,
           "concept": transactionText,
-          "sender": myUserId,
-        }),
-      );
-
+          "sender": currentUser.value.id,
+        });
       if (response.statusCode == 201) {
         fetchUserBalance();
         setState(() {});
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -106,45 +74,6 @@ class _GamblingPageState extends State<GamblingPage> {
     }
   }
 
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-                fetchUserBalance();
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
-    }
-  }
 
   int getTotalBetAmount() {
     return totalBetMap.values.expand((bets) => bets).fold(0, (a, b) => a + b);

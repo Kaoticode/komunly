@@ -1,15 +1,15 @@
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:komunly/constants/constants.dart';
 import 'package:komunly/functions/functions.dart';
+import 'package:komunly/models/user.model.dart';
 import 'package:komunly/pages/chat/chat_page.dart';
 import 'package:komunly/pages/profile/edit_profile_page.dart';
+import 'package:komunly/pages/social/followers_page.dart';
 import 'package:komunly/pages/user/login_page.dart';
-import 'package:komunly/pages/social/seguidores_page.dart';
-import 'package:komunly/pages/social/seguidos_page.dart';
 import 'package:komunly/pages/user_story_page.dart';
+import 'package:komunly/repository/api.repository.dart';
+import 'package:komunly/repository/social.repository.dart';
 import 'package:komunly/widgets/bottom_modal.dart';
 import 'package:komunly/widgets/infoCard.dart';
 import 'package:komunly/widgets/posts.dart';
@@ -59,7 +59,6 @@ class _ProfilePageState extends State<ProfilePage>
   late int seguidos;
   late bool isPublic;
   late bool isFollowed;
-  late String myUserId;
   late String principalId;
   bool? seeProfile;
   late TabController _tabController;
@@ -78,25 +77,13 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
-  Future<void> getMyUserId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    myUserId = prefs.getString('user_id')!;
-  }
+  
 
   void fetchProfile() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
     String apiUrl =
         "$API_URL/${await checkProfileId(widget.id) ? 'auth/me' : 'users/getProfile/${widget.id}'}";
-
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
+      var response = await apiCallHookGet(context, apiUrl);
 
       if (response.statusCode == 200) {
         setState(() {
@@ -114,79 +101,45 @@ class _ProfilePageState extends State<ProfilePage>
         });
         updateSeeProfile();
         fetchUsersStories();
-      } else {
-        if (response.statusCode == 401 ||
-            response.statusCode == 400 ||
-            response.statusCode == 400) {
-          refreshTokens();
-        } else {
-          /* 
-        var responseData = json.decode(response.body);
-          showSnackMessage(context, responseData['message'], "ERROR"); 
-        */
-        }
-      }
+      } 
     } catch (e) {
       showSnackMessage(context, "Error de conexión: $e", "ERROR");
     }
   }
 
   void fetchUsersStories() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String? userId = prefs.getString('user_id');
+
     String apiUrl =
-        "$API_URL/${await checkProfileId(widget.id) ? 'stories/$userId' : 'stories/${widget.id}'}";
+        "$API_URL/${await checkProfileId(widget.id) ? 'stories/${currentUser.value.id}' : 'stories/${widget.id}'}";
 
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
+      final response = await apiCallHookGet(context, apiUrl);
 
       if (response.statusCode == 200) {
         setState(() {
           StoriesList = json.decode(response.body);
         });
-      } else {
-        if (response.statusCode == 401 || response.statusCode == 400) {
-          refreshTokens();
-        } else {
-          var responseData = json.decode(response.body);
-          showSnackMessage(context, responseData['message'], "ERROR");
-        }
+      }  else {
+        var responseData = json.decode(response.body);
+        showSnackMessage(context, responseData['message'], "ERROR");
       }
+      
     } catch (e) {
       showSnackMessage(context, "Error de conexión: $e", "ERROR");
     }
   }
 
   Future<void> followUser() async {
-    print(widget.id);
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/follows";
-
     try {
       Navigator.pop(context);
-      var response = await http.post(Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $accessToken',
-          },
-          body: jsonEncode({
+      var response = await followUserChat(context, {
             "following": widget.id,
-          }));
+      });
 
       if (response.statusCode == 201) {
         setState(() {
           fetchProfile();
         });
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -201,27 +154,16 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> sendFollowRequest() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/follows/request";
-
     try {
       Navigator.pop(context);
-      var response = await http.post(Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $accessToken',
-          },
-          body: jsonEncode({
+      var response = await sendFollowRequestChat(context, {
             "following": widget.id,
-          }));
+        });
 
       if (response.statusCode == 201) {
         setState(() {
           fetchProfile();
         });
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -239,7 +181,6 @@ class _ProfilePageState extends State<ProfilePage>
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? accessToken = prefs.getString('access_token');
     String apiUrl = "$API_URL/follows/${widget.id}";
-
     try {
       Navigator.pop(context);
       var response = await http.delete(Uri.parse(apiUrl), headers: {
@@ -252,7 +193,7 @@ class _ProfilePageState extends State<ProfilePage>
           fetchProfile();
         });
       } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+        refreshTokens(context);
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -267,66 +208,12 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> bloquearUsuario(block_to) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/blocks";
-
     try {
       Navigator.pop(context);
-      var response = await http.post(Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $accessToken',
-          },
-          body: jsonEncode({"block_to": block_to}));
-
+      var response = await blockUser(context, {"block_to": block_to});
       if (response.statusCode == 201) {
         showSnackMessage(context, "Usuario bloqueado con éxito", "SUCCESS");
         fetchProfile();
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
-    }
-  }
-
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-        fetchProfile();
-        updateSeeProfile();
-        getMyUserId();
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -361,20 +248,9 @@ class _ProfilePageState extends State<ProfilePage>
     _tabController = TabController(length: 3, vsync: this);
     fetchProfile();
     updateSeeProfile();
-    getMyUserId();
-    getPrincipalId();
   }
 
-  Future<void> getPrincipalId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? myUserId = prefs.getString('user_id');
-    if (widget.id == null) {
-      principalId = myUserId ?? "";
-    } else {
-      principalId = widget.id ?? "";
-    }
-    print(principalId);
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -464,9 +340,7 @@ class _ProfilePageState extends State<ProfilePage>
     ];
 
     openModal() async {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? myUserId = prefs.getString('user_id');
-      if (widget.id == null || widget.id == myUserId) {
+      if (widget.id == null || widget.id == currentUser.value.id) {
         showModalBottomSheet(
           context: context,
           builder: (BuildContext context) {
@@ -540,8 +414,8 @@ class _ProfilePageState extends State<ProfilePage>
                             GestureDetector(
                               onTap: () {
                                 Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (_) => SeguidoresPage(
-                                        userid: widget.id ?? myUserId)));
+                                    builder: (_) => FollowersPage(
+                                        userid: widget.id ?? currentUser.value.id, typeComponent: 'pending',)));
                               },
                               child: GestureDetector(
                                 child: Column(
@@ -559,8 +433,8 @@ class _ProfilePageState extends State<ProfilePage>
                             GestureDetector(
                               onTap: () {
                                 Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (_) => SeguidosPage(
-                                        userid: widget.id ?? myUserId)));
+                                    builder: (_) => FollowersPage(
+                                        userid: widget.id ?? currentUser.value.id, typeComponent: 'sent',)));
                               },
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,

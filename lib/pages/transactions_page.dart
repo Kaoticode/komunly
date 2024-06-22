@@ -1,14 +1,11 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:komunly/constants/constants.dart';
+import 'package:komunly/models/user.model.dart';
 import 'package:komunly/pages/gambling_page.dart';
-import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/repository/user.repository.dart';
 import 'package:komunly/widgets/customTile.dart';
 import 'package:komunly/widgets/snackbars.dart';
 import 'package:komunly/widgets/transactionsList.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 class TransactionsPage extends StatefulWidget {
@@ -25,7 +22,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
   final scrollController = ScrollController();
   List<dynamic> transactions = [];
   int userBalance = 0;
-  String myUserId = "";
   int page = 1;
   int limit = 15;
   bool isLoading = false;
@@ -34,39 +30,19 @@ class _TransactionsPageState extends State<TransactionsPage> {
   void initState() {
     super.initState();
     scrollController.addListener(_scrollListener);
-    fetchUserId();
     fetchUserBalance();
     fetchTransactions();
   }
 
-  void fetchUserId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      myUserId = prefs.getString('user_id') ?? '0';
-    });
-  }
-
   void fetchUserBalance() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/users/getBalance";
-
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
+      var response = await getUserBalance(context);
 
       if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
         userBalance = jsonResponse['userBalance'];
 
         setState(() {});
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -80,33 +56,20 @@ class _TransactionsPageState extends State<TransactionsPage> {
     String bankNumber = _bankNumberController.text;
     String amount = _amountController.text;
     String concept = _conceptController.text;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String? myUserId = prefs.getString('user_id');
-    String apiUrl = "$API_URL/transactions";
-
+    
     try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-        body: jsonEncode({
-          "sender": myUserId,
+      var response = await updateUserBalance(context, {
+          "sender": currentUser.value.id,
           "receiver": bankNumber,
           "amount": amount,
           "concept": concept,
           "transactionType": "TRANSFERENCE"
-        }),
-      );
+        });
 
       if (response.statusCode == 201) {
         fetchUserBalance();
         showSnackMessage(context, "Transacción realizada con éxito", "SUCCESS");
         setState(() {});
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -121,20 +84,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
     setState(() {
       isLoading = true;
     });
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/transactions?page=$page&limit=$limit";
-
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
-
+      var response = await getUserTransactions(context, 'transactions?page=$page&limit=$limit');
       if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
         List<dynamic> newData = jsonResponse['data'];
@@ -142,8 +93,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
         setState(() {
           transactions.addAll(newData);
         });
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
@@ -157,47 +106,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
   }
 
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-                fetchUserId();
-    fetchUserBalance();
-    fetchTransactions();
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
-    }
-  }
 
   void openSendBottom(BuildContext context) {
     showModalBottomSheet(
@@ -401,7 +309,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 itemBuilder: (context, index) {
                   if (index < transactions.length) {
                     return TransactionsList(
-                        transaction: transactions[index], myUserId: myUserId);
+                        transaction: transactions[index], myUserId: currentUser.value.id);
                   } else {
                     return _buildLoader();
                   }

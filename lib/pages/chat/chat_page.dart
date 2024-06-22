@@ -3,8 +3,9 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
 import 'package:komunly/functions/functions.dart';
-import 'package:komunly/pages/user/login_page.dart';
+import 'package:komunly/models/user.model.dart';
 import 'package:komunly/pages/social/post_page.dart';
+import 'package:komunly/repository/social.repository.dart';
 import 'package:komunly/utils/widgets.dart';
 import 'package:komunly/widgets/bottom_modal.dart';
 import 'package:komunly/widgets/snackbars.dart';
@@ -31,19 +32,18 @@ class _ChatPageState extends State<ChatPage> {
   bool isLoading = false;
   int page = 1;
   int limit = 10;
-  late String myUserId;
 
   @override
   void initState() {
     super.initState();
     scrollController.addListener(_scrollListener);
-    getMyUserId();
     fetchMensajes();
-  }
-
-  Future<void> getMyUserId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    myUserId = prefs.getString('user_id')!;
+    scrollController.animateTo(
+      0.0,
+      curve: Curves.easeOut,
+      duration: const Duration(milliseconds: 300),
+    );
+    
   }
 
   Future<void> fetchMensajes() async {
@@ -51,29 +51,15 @@ class _ChatPageState extends State<ChatPage> {
     setState(() {
       isLoading = true;
     });
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl =
-        "$API_URL/messages/chat/${widget.userId}?page=$page&limit=$limit";
-
     try {
-      var response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
-
+      var response = await getMessagesChatEndpoint(context, 'messages/chat/${widget.userId}', page, limit);
+      var jsonResponse = json.decode(response.body);
       if (response.statusCode == 200) {
-        var jsonResponse = json.decode(response.body);
         List<dynamic> newMessages = jsonResponse['data'];
         setState(() {
           messages.addAll(newMessages);
         });
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
+
       } else {
         showSnackMessage(context,
             "Error al obtener los mensajes: ${response.statusCode}", "ERROR");
@@ -88,27 +74,15 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> sendMessage(body) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('access_token');
-    String apiUrl = "$API_URL/messages/";
-
     try {
-      var response = await http.post(Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $accessToken',
-          },
-          body: jsonEncode({
+      var response = await sendMessageChat(context, {
             "receiverId": widget.userId,
             "type": "TEXT",
             "body": body,
-          }));
-
+          });
       if (response.statusCode == 201) {
         fetchMensajes();
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
-      } else {
+      }  else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
       }
@@ -135,9 +109,7 @@ class _ChatPageState extends State<ChatPage> {
       if (response.statusCode == 200) {
         print("Borrado con exito");
         fetchMensajes();
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-        refreshTokens();
-      } else {
+      }  else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");
       }
@@ -147,47 +119,6 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {
         isLoading = false;
       });
-    }
-  }
-
-  Future<void> refreshTokens() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    String? refreshToken = prefs.getString('refresh_token');
-    String apiUrl = "$API_URL/auth/refreshTokens";
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"refreshToken": refreshToken}),
-      );
-
-      if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response.body);
-        String accessToken = jsonResponse['access_token'];
-        await prefs.setString('access_token', accessToken);
-        showSnackMessage(context,
-            "Tokens Refrescados, vuelve a ejecutar la función", "SUCCESS");
-        getMyUserId();
-        fetchMensajes();
-      } else if (response.statusCode != 201) {
-        await prefs.remove('access_token');
-        await prefs.remove('refresh_token');
-        await prefs.remove('user_id');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
-      }
-    } catch (e) {
-      showSnackMessage(context, "Error de conexión: $e", "ERROR");
     }
   }
 
@@ -269,14 +200,14 @@ class _ChatPageState extends State<ChatPage> {
                         vertical: 10.0, horizontal: 10.0),
                     child: Row(
                       mainAxisAlignment:
-                          messages[index]["sender"]["_id"] == myUserId
+                          messages[index]["sender"]["_id"] == currentUser.value.id
                               ? MainAxisAlignment.end
                               : MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Column(
                           crossAxisAlignment:
-                              messages[index]["sender"]["_id"] == myUserId
+                              messages[index]["sender"]["_id"] == currentUser.value.id
                                   ? CrossAxisAlignment.end
                                   : CrossAxisAlignment.start,
                           children: [
@@ -292,7 +223,7 @@ class _ChatPageState extends State<ChatPage> {
                                     : "";
                               },
                               onLongPress: () {
-                                messages[index]["sender"]["_id"] == myUserId
+                                messages[index]["sender"]["_id"] == currentUser.value.id
                                     ? deleteMessage(messages[index]["_id"])
                                     : print("No borrar");
                               },
@@ -300,12 +231,12 @@ class _ChatPageState extends State<ChatPage> {
                                 padding: const EdgeInsets.all(10.0),
                                 decoration: BoxDecoration(
                                   color: messages[index]["sender"]["_id"] ==
-                                          myUserId
+                                          currentUser.value.id
                                       ? Colors.blue
                                       : Colors.grey,
                                   borderRadius: messages[index]["sender"]
                                               ["_id"] ==
-                                          myUserId
+                                          currentUser.value.id
                                       ? const BorderRadius.only(
                                           topLeft: Radius.circular(15.0),
                                           bottomLeft: Radius.circular(15.0),
