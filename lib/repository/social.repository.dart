@@ -1,18 +1,18 @@
 import 'package:komunly/repository/api.repository.dart';
 Future<dynamic> getPosts(context, String endpoint) async {
-  final response = await apiCallHookGet(context, endpoint);
+  final response = await apiCallHookGet(context, endpoint, false);
   return response;
 }
 
 
 Future<dynamic> getMessagesChat(context) async {
-  final response = await apiCallHookGet(context, 'messages/chat');
+  final response = await apiCallHookGet(context, 'messages/chat', true);
   return response;
 }
 
 Future<dynamic> getMessagesChatEndpoint(context, limit, page, endpoint) async {
   String apiUrl = "${endpoint}?page=$page&limit=$limit";
-  final response = await apiCallHookGet(context, apiUrl);
+  final response = await apiCallHookGet(context, apiUrl, true);
   return response;
 }
 

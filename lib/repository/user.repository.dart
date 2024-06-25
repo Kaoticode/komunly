@@ -15,8 +15,8 @@ Future<dynamic> loginUser(context, username, password) async {
           'username': username,
           'password': password,
     });
-    if (response.statusCode == 201) {
-        var jsonResponse = json.decode(response!);
+    if (response.statusCode == 200) {
+        var jsonResponse = json.decode(response!.body);
         String accessToken = jsonResponse['access_token'];
         String refreshToken = jsonResponse['refresh_token'];
         SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -24,23 +24,23 @@ Future<dynamic> loginUser(context, username, password) async {
         await prefs.setString('user_id', userId);
         await prefs.setString('access_token', accessToken);
         await prefs.setString('refresh_token', refreshToken);
-        currentUser.value = UserModel.fromJSON(jsonResponse);
+        currentUser.value.id = userId;
     } 
     return response;
 }
 Future<dynamic> getUserNotifications(context, String uri) async {
-  final response = await apiCallHookGet(context, uri);
+  final response = await apiCallHookGet(context, uri, true);
   return response;
 }
 Future<dynamic> getUserBalance(context) async {
-  final response = await apiCallHookGet(context, '/users/getBalance');
+  final response = await apiCallHookGet(context, '/users/getBalance', true);
   return response;
 }
 Future<dynamic> updateUserBalance(context, Object body) async {
-  final response = await apiCallHook(context, '/transactions', body);
+  final response = await apiCallHook(context, '/transactions', body,);
   return response;
 }
 Future<dynamic> getUserTransactions(context, String uri) async {
-  final response = await apiCallHookGet(context, uri);
+  final response = await apiCallHookGet(context, uri, true);
   return response;
 }

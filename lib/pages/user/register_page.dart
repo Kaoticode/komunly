@@ -46,11 +46,12 @@ class _RegistePageState extends State<RegistePage> {
     try {
       var response = await createUser(context, username, password, email);
       var jsonResponse = json.decode(response.body);
-      if (response.statusCode == 201) {
+      print(response.statusCode);
+      if (response.statusCode == 200) {
         showSnackMessage(context,
             "Registro exitoso. Inicia sesión para continuar", "SUCCESS");
       } else {
-        showSnackMessage(context, jsonResponse['message'], "ERROR");
+        showSnackMessage(context, jsonResponse!['message'] ?? '', "ERROR");
       }
     } catch (e) {
       showSnackMessage(context, "Error de conexión: $e", "ERROR");

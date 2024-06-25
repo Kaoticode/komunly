@@ -59,7 +59,7 @@ class _ProfilePageState extends State<ProfilePage>
   late int seguidos;
   late bool isPublic;
   late bool isFollowed;
-  late String principalId;
+  late String principalId = currentUser.value.id;
   bool? seeProfile;
   late TabController _tabController;
   late List<dynamic> StoriesList = [];
@@ -68,9 +68,8 @@ class _ProfilePageState extends State<ProfilePage>
   int limit = 15;
 
   Future<bool> isaFollowing() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? myUserId = prefs.getString('user_id');
-    if (widget.id == null || myUserId == widget.id || isFollowed || isPublic) {
+    
+    if (widget.id == null || currentUser.value.id == widget.id || isFollowed || isPublic) {
       return true;
     } else {
       return false;
@@ -81,9 +80,9 @@ class _ProfilePageState extends State<ProfilePage>
 
   void fetchProfile() async {
     String apiUrl =
-        "$API_URL/${await checkProfileId(widget.id) ? 'auth/me' : 'users/getProfile/${widget.id}'}";
+        "${await checkProfileId(widget.id) ? 'auth/me' : 'users/getProfile/${widget.id}'}";
     try {
-      var response = await apiCallHookGet(context, apiUrl);
+      var response = await apiCallHookGet(context, apiUrl, true);
 
       if (response.statusCode == 200) {
         setState(() {
@@ -113,7 +112,7 @@ class _ProfilePageState extends State<ProfilePage>
         "$API_URL/${await checkProfileId(widget.id) ? 'stories/${currentUser.value.id}' : 'stories/${widget.id}'}";
 
     try {
-      final response = await apiCallHookGet(context, apiUrl);
+      final response = await apiCallHookGet(context, apiUrl, true);
 
       if (response.statusCode == 200) {
         setState(() {
@@ -136,7 +135,7 @@ class _ProfilePageState extends State<ProfilePage>
             "following": widget.id,
       });
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200) {
         setState(() {
           fetchProfile();
         });

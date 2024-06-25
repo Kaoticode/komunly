@@ -38,14 +38,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
     var response = await getUserNotifications(context, 'notifications?page=$page&limit=$limit');
       if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
-        List<dynamic> newData = jsonResponse['data'];
+        List<dynamic> newData = jsonResponse['data'] ?? [];
 
         setState(() {
           notifications.addAll(newData);
         });
       } else {
         var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
+        showSnackMessage(context, responseData!['message'], "ERROR");
       }
     } catch (e) {
       showSnackMessage(context, "Error de conexión: $e", "ERROR");

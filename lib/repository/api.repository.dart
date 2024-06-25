@@ -24,7 +24,7 @@ Future<dynamic> refreshTokens(context) async {
         body: jsonEncode({"refreshToken": refreshToken}),
       );
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
         String accessToken = jsonResponse['access_token'];
         await prefs.setString('access_token', accessToken);
@@ -45,7 +45,7 @@ Future<dynamic> apiCallHook(dynamic context, String uri, Object useBody) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? accessToken = prefs.getString('access_token');
   final client = http.Client();
-  final response = await client.post(Uri.parse('$API_URL/$uri/'),
+  final response = await client.post(Uri.parse('$API_URL/$uri'),
       headers: {
         HttpHeaders.contentTypeHeader: 'application/json',
         'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ Future<dynamic> apiCallHook(dynamic context, String uri, Object useBody) async {
   return response;
 }
 
-Future<dynamic> apiCallHookGet(dynamic context, String uri) async {
+Future<dynamic> apiCallHookGet(dynamic context, String uri, bool refresh) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? accessToken = prefs.getString('access_token');
   final client = http.Client();
@@ -72,9 +72,11 @@ Future<dynamic> apiCallHookGet(dynamic context, String uri) async {
         'Content-Type': 'application/json',
           'Authorization': 'Bearer $accessToken',
     });
-  if (response.statusCode == 401 || response.statusCode == 400) {
-    if(await refreshTokens(context) == false){
-      return false;
+  if(refresh){
+    if (response.statusCode == 401 || response.statusCode == 400) {
+      if(await refreshTokens(context) == false){
+        return false;
+      }
     }
   }
   return response;

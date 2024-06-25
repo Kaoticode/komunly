@@ -35,10 +35,10 @@ class _LoginPageState extends State<LoginPage> {
     try {
       var response = await loginUser(context, username, password);
       var jsonResponse = json.decode(response.body);
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200) {
         Helper.nextScreen(context, RootPage());
       } else {
-        showSnackMessage(context, jsonResponse['message'], "ERROR");
+        showSnackMessage(context, jsonResponse!['message'] ?? '', "ERROR");
       }
     } catch (e) {
       print("Error de conexión: $e");

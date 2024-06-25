@@ -44,15 +44,12 @@ class _StoriesWidgetState extends State<StoriesWidget> {
           'Authorization': 'Bearer $accessToken',
         },
       );
-
       if (response.statusCode == 200) {
         List<dynamic> newData = json.decode(response.body);
 
         setState(() {
           StoriesList.addAll(newData);
         });
-      } else if (response.statusCode == 401 || response.statusCode == 400) {
-         refreshTokens(context);
       } else {
         var responseData = json.decode(response.body);
         showSnackMessage(context, responseData['message'], "ERROR");

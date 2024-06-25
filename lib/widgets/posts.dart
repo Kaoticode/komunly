@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:komunly/constants/constants.dart';
 import 'package:komunly/functions/functions.dart';
+import 'package:komunly/models/user.model.dart';
 import 'package:komunly/repository/social.repository.dart';
 import 'package:komunly/theme/colors.dart';
 import 'package:komunly/utils/reusables.dart';
@@ -29,7 +30,6 @@ class _PostsWidgetState extends State<PostsWidget> {
   bool isLoading = false;
   int page = 1;
   int limit = 15;
-  late String myUserId;
 
   @override
   void initState() {
@@ -45,17 +45,16 @@ class _PostsWidgetState extends State<PostsWidget> {
     String apiUrl = "${widget.endpoint}limit=$limit&page=$page";
     try {
       var response = await getPosts(context, apiUrl);
-
-      if (response != null) {
-        var jsonResponse = json.decode(response);
-        List<dynamic> newData = jsonResponse['data'];
+      if (response.statusCode == 200) {
+        var jsonResponse = json.decode(response!.body);
+        List<dynamic> newData = jsonResponse!['data'] ?? [];
 
         setState(() {
           PostsList.addAll(newData);
         });
       } else {
         var responseData = json.decode(response.body);
-        showSnackMessage(context, responseData['message'], "ERROR");
+        showSnackMessage(context, responseData!['message'] ?? '', "ERROR");
       }
     } catch (e) {
       showSnackMessage(context, "Error de conexión: $e", "ERROR");
@@ -419,12 +418,12 @@ class _PostsWidgetState extends State<PostsWidget> {
                 ),
               ),
               title: Text(
-                ownerId == myUserId ? "Eliminar post" : "Reportar",
+                ownerId == currentUser.value.id ? "Eliminar post" : "Reportar",
                 style: const TextStyle(color: Colors.white),
               ),
               onTap: () {
                 Navigator.pop(context);
-                ownerId == myUserId
+                ownerId == currentUser.value.id
                     ? eliminarPost(postId)
                     : reportarPost(postId);
               },
