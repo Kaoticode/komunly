@@ -47,6 +47,7 @@ class _RegistePageState extends State<RegistePage> {
       var response = await createUser(context, username, password, email);
       var jsonResponse = json.decode(response.body);
       print(response.statusCode);
+      print(jsonResponse!['message'] ?? '');
       if (response.statusCode == 200) {
         showSnackMessage(context,
             "Registro exitoso. Inicia sesión para continuar", "SUCCESS");

@@ -52,7 +52,7 @@ Future<dynamic> apiCallHook(dynamic context, String uri, Object useBody) async {
           'Authorization': 'Bearer $accessToken',
       },
       body: json.encode(useBody));
-  if(uri != 'auth/login'){
+  if(uri != 'auth/login' && uri != 'auth/register'){
     if (response.statusCode == 401 || response.statusCode == 400) {
       if(await refreshTokens(context) == false){
         return false;
@@ -65,6 +65,7 @@ Future<dynamic> apiCallHook(dynamic context, String uri, Object useBody) async {
 Future<dynamic> apiCallHookGet(dynamic context, String uri, bool refresh) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? accessToken = prefs.getString('access_token');
+  print(accessToken);
   final client = http.Client();
   final response = await client.get(Uri.parse('$API_URL/$uri/'),
       headers: {

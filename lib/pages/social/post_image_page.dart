@@ -34,8 +34,8 @@ class _PostImagePageState extends State<PostImagePage> {
       'Authorization': 'Bearer $accessToken',
     });
     // request.fields['type'] = 'free';
-    request.fields['caption'] = _captionController.text;
-    request.files.add(await http.MultipartFile.fromPath(
+    request!.fields['caption'] = _captionController.text;
+    request!.files!.add(await http.MultipartFile.fromPath(
       'postImage',
       image.path,
     ));
